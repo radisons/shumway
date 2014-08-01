@@ -22,6 +22,8 @@ module.exports = function(grunt) {
   // needed by the build system.
   var commonArguments = 'node utils/typescript/tsc --target ES5 --sourcemap -d --out build/ts/';
 
+  var browserManifestFile = './resources/browser_manifests/browser_manifest.json';
+
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
     jshint: {
@@ -87,6 +89,13 @@ module.exports = function(grunt) {
       },
       gate: {
         cmd: 'utils/jsshell/js build/ts/shell.js -x -g -v test/unit/pass/*.js'
+//        cmd: 'node build/ts/shell.js -x -g -v test/unit/pass/*.js'
+      },
+      smoke_parse_database: {
+        cmd: 'find test/swf -name "*.swf" -exec utils/jsshell/js build/ts/shell.js -p -po -r {} + >> result'
+      },
+      smoke_parse: {
+        cmd: 'find test/swfs -name "*.swf" -exec utils/jsshell/js build/ts/shell.js -p -r {} +'
       },
       closure: {
         // This needs a special build of closure that has SHUMWAY_OPTIMIZATIONS.
@@ -233,7 +242,7 @@ module.exports = function(grunt) {
     updateRefs('test/harness/slave.html', {gfx: true, parser: true, player: true});
     updateRefs('examples/xlsimport/index.html', {gfx: true, parser: true, player: true});
     updateRefs('examples/inspector/inspector.player.html', {parser: true, player: true});
-    updateRefs('examples/shell/run.js', {parser: true, player: true});
+    updateRefs('src/shell/shell.ts', {parser: true, player: true, onlyIncludes: true});
     updateRefs('src/swf/worker.js', {parser: true});
   });
   grunt.registerTask('update-flash-refs', ['update-refs']); // TODO deprecated
@@ -257,14 +266,32 @@ module.exports = function(grunt) {
 
   grunt.registerTask('reftest', function () {
     var done = this.async();
-    grunt.util.spawn({cmd: 'make', args: ['reftest'], opts: { cwd: 'test', stdio: 'inherit'}}, function () {
+    grunt.util.spawn({
+      cmd: 'python',
+      args: ['test.py', '--reftest', '--browserManifestFile=' + browserManifestFile],
+      opts: { cwd: 'test', stdio: 'inherit'
+    }}, function () {
+      done();
+    });
+  });
+
+  grunt.registerTask('reftest-bundle', function () {
+    var done = this.async();
+    grunt.util.spawn({
+      cmd: 'python',
+      args: ['test.py', '--bundle', '--reftest', '--browserManifestFile=' + browserManifestFile],
+      opts: { cwd: 'test', stdio: 'inherit'
+      }}, function () {
       done();
     });
   });
 
   grunt.registerTask('makeref', function () {
     var done = this.async();
-    grunt.util.spawn({cmd: 'make', args: ['makeref'], opts: { cwd: 'test', stdio: 'inherit'}}, function () {
+    grunt.util.spawn({
+      cmd: 'python',
+      args: ['test.py', '-m', '--browserManifestFile=' + browserManifestFile],
+      opts: { cwd: 'test', stdio: 'inherit'}}, function () {
       done();
     });
   });
@@ -321,5 +348,9 @@ module.exports = function(grunt) {
     'exec:closure',
     // 'exec:gate'
   ]);
+  grunt.registerTask('smoke', [
+    'exec:smoke_parse'
+  ]);
   grunt.registerTask('firefox', ['shu', 'exec:build_extension']);
+  grunt.registerTask('web', ['shu', 'exec:build_extension', 'exec:build_web']);
 };

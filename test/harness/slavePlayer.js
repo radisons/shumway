@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+Shumway.dontSkipFramesOption.value = true;
+
 var release = true;
-var SHUMWAY_ROOT = "../src/";
+var SHUMWAY_ROOT = "../../src/";
 
 var viewerPlayerglobalInfo = {
-  abcs: "../build/playerglobal/playerglobal.abcs",
-  catalog: "../build/playerglobal/playerglobal.json"
+  abcs: "../../build/playerglobal/playerglobal.abcs",
+  catalog: "../../build/playerglobal/playerglobal.json"
 };
 
 var avm2Root = SHUMWAY_ROOT + "avm2/";
@@ -29,7 +31,7 @@ var builtinPath = avm2Root + "generated/builtin/builtin.abc";
 var avm1Path = avm2Root + "generated/avm1lib/avm1lib.abc";
 
 window.print = function (msg) {
-  console.log(msg);
+  window.parent.postMessage({type: 'console-log', msg: msg}, '*');
 };
 
 Shumway.Telemetry.instance = {
@@ -75,19 +77,40 @@ Shumway.FileLoadingService.instance = {
     if (typeof URL !== 'undefined') {
       return new URL(url, base).href;
     }
-
-    if (url.indexOf('://') >= 0) {
-      return url;
-    }
-
-    base = base.lastIndexOf('/') >= 0 ? base.substring(0, base.lastIndexOf('/') + 1) : '';
-    if (url.indexOf('/') === 0) {
-      var m = /^[^:]+:\/\/[^\/]+/.exec(base);
-      if (m) base = m[0];
-    }
-    return base + url;
+    return combineUrl(base, url);
   }
 };
+
+// Combines two URLs. The baseUrl shall be absolute URL. If the url is an
+// absolute URL, it will be returned as is.
+function combineUrl(baseUrl, url) {
+  if (!url) {
+    return baseUrl;
+  }
+  if (/^[a-z][a-z0-9+\-.]*:/i.test(url)) {
+    return url;
+  }
+  var i;
+  if (url.charAt(0) == '/') {
+    // absolute path
+    i = baseUrl.indexOf('://');
+    if (url.charAt(1) === '/') {
+      ++i;
+    } else {
+      i = baseUrl.indexOf('/', i + 3);
+    }
+    return baseUrl.substring(0, i) + url;
+  } else {
+    // relative path
+    var pathLength = baseUrl.length;
+    i = baseUrl.lastIndexOf('#');
+    pathLength = i >= 0 ? i : pathLength;
+    i = baseUrl.lastIndexOf('?', pathLength);
+    pathLength = i >= 0 ? i : pathLength;
+    var prefixLength = baseUrl.lastIndexOf('/', pathLength);
+    return baseUrl.substring(0, prefixLength + 1) + url;
+  }
+}
 
 function runSwfPlayer(flashParams) {
   var EXECUTION_MODE = Shumway.AVM2.Runtime.ExecutionMode;

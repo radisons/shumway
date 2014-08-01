@@ -111,7 +111,10 @@ module Shumway.Metrics {
       this._times = ObjectUtilities.createMap<number>();
     }
     public toJSON() {
-      return {counts: this._counts};
+      return {
+        counts: this._counts,
+        times: this._times
+      };
     }
     public count(name: string, increment: number = 1, time: number = 0) {
       if (!this._enabled) {
@@ -131,6 +134,7 @@ module Shumway.Metrics {
       }
     }
     public toStringSorted(): string {
+      var times = this._times;
       var pairs = [];
       for (var name in this._counts) {
         pairs.push([name, this._counts[name]]);
@@ -139,7 +143,17 @@ module Shumway.Metrics {
         return b[1] - a[1];
       });
       return (pairs.map(function (pair) {
-        return (pair[0] + ": " + pair[1]);
+        var name = pair[0];
+        var count = pair[1];
+        var time = times[name];
+        var line = name + ": " + count;
+        if (time) {
+          line += ", " + time.toFixed(4);
+          if (count > 1) {
+            line += " (" + (time / count).toFixed(4) + ")";
+          }
+        }
+        return line;
       }).join(", "));
     }
     public traceSorted(writer: IndentingWriter, inline = false) {

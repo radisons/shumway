@@ -113,7 +113,8 @@ module Shumway.AVM2.AS.flash.display {
 
     _setParent(parent: DisplayObjectContainer, depth: number) {
       super._setParent(parent, depth);
-      if (parent && this._hasFlags(DisplayObjectFlags.HasFrameScriptPending)) {
+      if (parent && this._hasAnyFlags(DisplayObjectFlags.HasFrameScriptPending |
+                                      DisplayObjectFlags.ContainsFrameScriptPendingChildren)) {
         parent._propagateFlagsUp(DisplayObjectFlags.ContainsFrameScriptPendingChildren);
       }
     }
@@ -126,7 +127,7 @@ module Shumway.AVM2.AS.flash.display {
         } else if (this._currentButtonState !== null) {
           state = '_up';
         }
-        if (state !== this._currentButtonState) {
+        if (state !== this._currentButtonState && this._buttonFrames[state]) {
           this.stop();
           this._gotoFrame(state, null);
           this._currentButtonState = state;
@@ -328,23 +329,6 @@ module Shumway.AVM2.AS.flash.display {
         return;
       }
 
-      //if (this._buttonMode && this._enabled) {
-      //  var buttonState = '_up';
-      //  if (this._mouseOver) {
-      //    buttonState = this._mouseDown ? '_down' : '_over';
-      //  }
-      //  var currentScene = scenes[this._sceneIndex];
-      //  var labels = currentScene.labels;
-      //  for (var j = 0; j < labels.length; j++) {
-      //    var label = labels[j];
-      //    if (label.name === buttonState) {
-      //      // this.stop();
-      //      nextFrame = offset + label.frame;
-      //      break;
-      //    }
-      //  }
-      //}
-
       if (nextFrame > this.framesLoaded) {
         // If nextFrame was > this._totalFrames, it has to be written back here, otherwise it'll
         // just be incremented ever further.
@@ -376,7 +360,7 @@ module Shumway.AVM2.AS.flash.display {
         release || assert (frame, "FrameDelta is not defined.");
         var stateAtDepth = frame.stateAtDepth;
         for (var depth in stateAtDepth) {
-          var child = this.getChildAtDepth(depth);
+          var child = this.getChildAtDepth(depth | 0);
           var state = stateAtDepth[depth];
           if (child) {
             if (state && state.canBeAnimated(child)) {
@@ -456,7 +440,6 @@ module Shumway.AVM2.AS.flash.display {
 
     private _removeAnimatedChild(child: flash.display.DisplayObject) {
       this.removeChild(child);
-      child._removeReference();
       if (child._name) {
         var mn = Multiname.getPublicQualifiedName(child._name);
         if (this[mn] === child) {
